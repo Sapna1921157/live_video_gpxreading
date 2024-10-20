@@ -2,33 +2,64 @@ from flask import Flask, render_template, Response, jsonify
 import cv2
 import time
 import random
+import json
 
 app = Flask(__name__)
 
 # Placeholder for live video or camera feed
 camera = cv2.VideoCapture(0)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# File to store GPX data
+gpx_data_file = 'gpx_data.json'
 
-# Generate bounding box data (latitude, longitude, timestamp)
+# Function to save GPX data to a JSON file
+def save_gpx_data(gpx_data):
+    with open(gpx_data_file, 'w') as f:
+        json.dump(gpx_data, f, indent=4)
+
+# Function to generate random GPX data
 def generate_gpx_data():
     # Example logic to generate GPX data (replace with actual processing code)
-    return {
+    gpx_data = {
         'latitude': round(random.uniform(-90, 90), 5),
         'longitude': round(random.uniform(-180, 180), 5),
         'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     }
+    # Save GPX data to a file
+    save_gpx_data(gpx_data)
+    return gpx_data
 
-# Stream live video with bounding box and GPX data
-def gen():
+@app.route('/')
+def index():
+    # Main page rendering, assuming you have an index.html setup
+    return render_template('index.html')
+
+# Stream live video (first panel)
+def gen_original_video():
     while True:
         success, frame = camera.read()
         if not success:
             break
         else:
-            # Get GPX data
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    # Route to stream the original live video feed
+    return Response(gen_original_video(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# Stream live video with bounding box and GPX data (second panel)
+def gen_video_with_bounding_box():
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+        else:
+            # Generate GPX data
             gpx_data = generate_gpx_data()
             latitude = gpx_data['latitude']
             longitude = gpx_data['longitude']
@@ -58,16 +89,20 @@ def gen():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen(),
+@app.route('/video_feed_with_box')
+def video_feed_with_box():
+    # Route to stream the video with a bounding box
+    return Response(gen_video_with_bounding_box(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# Simulate GPX data processing from the live video (replace with actual logic)
+# Route to get the latest GPX data
 @app.route('/gpx_data', methods=['GET'])
 def gpx_data():
-    # Generate GPX data
-    gpx_data = generate_gpx_data()
+    try:
+        with open(gpx_data_file, 'r') as f:
+            gpx_data = json.load(f)
+    except FileNotFoundError:
+        gpx_data = {}
     return jsonify(gpx_data)
 
 if __name__ == '__main__':

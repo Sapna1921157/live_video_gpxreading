@@ -3,71 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPX Data Processing</title>
+    <title>Live Video Feed with GPX Data</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
         .container {
             display: flex;
             justify-content: space-around;
+            align-items: flex-start;
+            flex-wrap: nowrap;
         }
         .panel {
-            border: 1px solid black;
-            width: 30%;
-            height: 300px;
+            margin: 10px;
             padding: 10px;
-            text-align: center;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 30%;
+        }
+        h2 {
+            color: #333;
+        }
+        img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .gpx-data-container pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            text-align: left;
+        }
+        .download-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .download-button:hover {
+            background-color: #45a049;
         }
     </style>
-</head>
-<body>
-    <h1>GPX Data from Live Video</h1>
-    <div class="container">
-        <!-- Live Video -->
-        <div class="panel" id="live_video_panel">
-            <h2>Live Video</h2>
-            <img id="video_feed" src="{{ url_for('video_feed') }}" alt="Video Feed" width="100%">
-        </div>
-
-        <!-- GPX Processing Panel -->
-        <div class="panel" id="gpx_processing_panel">
-            <h2>GPX Data Processing</h2>
-            <div class="video-container">
-                <h1>Live Video Feed with GPX Data</h1>
-                <img src="{{ url_for('video_feed') }}" alt="Live Video Feed">
-            </div>
-            <button id="process_gpx" onclick="fetchGPXData()">Process GPX</button>
-        </div>
-
-        <!-- GPX Values Panel (JSON) -->
-        <div class="panel" id="gpx_reading_panel">
-            <h2>GPX Reading</h2>
-            <pre id="gpx_json"></pre>
-            <button onclick="downloadJSON()">Download JSON</button>
-        </div>
-    </div>
-
     <script>
-        function fetchGPXData() {
-            fetch('/gpx_data').then(response => response.json()).then(data => {
-                document.getElementById('latitude').textContent = data.latitude;
-                document.getElementById('longitude').textContent = data.longitude;
-                document.getElementById('timestamp').textContent = data.timestamp;
-
-                // Show data as JSON in third panel
-                document.getElementById('gpx_json').textContent = JSON.stringify(data, null, 4);
-            });
+        // Function to fetch and update the GPX data
+        function updateGPXData() {
+            fetch('/gpx_data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('gpx-data').textContent = JSON.stringify(data, null, 4);
+                })
+                .catch(error => {
+                    console.error('Error fetching GPX data:', error);
+                });
         }
 
+        // Refresh GPX data every 3 seconds
+        setInterval(updateGPXData, 3000);
+
+        // Initial fetch of GPX data when the page loads
+        window.onload = updateGPXData;
+
+        // Function to download the JSON file
         function downloadJSON() {
-            const data = document.getElementById('gpx_json').textContent;
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'gpx_data.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            fetch('/gpx_data')
+                .then(response => response.json())
+                .then(data => {
+                    const fileName = 'gpx_data.json';
+                    const jsonStr = JSON.stringify(data, null, 4);
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Error downloading JSON file:', error);
+                });
         }
     </script>
+</head>
+<body>
+    <h1>Live Video Feed with GPX Data</h1>
+    <div class="container">
+        <div class="panel">
+            <h2>Original Video Feed</h2>
+            <img src="{{ url_for('video_feed') }}" alt="Live Video Feed">
+        </div>
+        <div class="panel">
+            <h2>Video Feed with Bounding Box</h2>
+            <img src="{{ url_for('video_feed_with_box') }}" alt="Video with Bounding Box">
+        </div>
+        <div class="panel gpx-data-container">
+            <h2>GPX Data</h2>
+            <pre id="gpx-data">Loading...</pre>
+            <button class="download-button" onclick="downloadJSON()">Download GPX Data</button>
+        </div>
+    </div>
 </body>
 </html>
