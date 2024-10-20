@@ -41,22 +41,40 @@
             overflow-x: auto;
             text-align: left;
         }
-        .download-button {
-            margin-top: 10px;
+        .control-buttons {
+            margin: 20px 0;
+        }
+        .control-buttons button {
             padding: 10px 20px;
             background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin: 0 5px;
         }
-        .download-button:hover {
-            background-color: #45a049;
+        .control-buttons button.stop {
+            background-color: #f44336;
+        }
+        .control-buttons button:hover {
+            opacity: 0.8;
+        }
+        .timer {
+            font-size: 18px;
+            margin-top: 10px;
         }
     </style>
     <script>
+        let isRunning = false;
+        let intervalId = null;
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+
         // Function to fetch and update the GPX data
         function updateGPXData() {
+            if (!isRunning) return;
+
             fetch('/gpx_data')
                 .then(response => response.json())
                 .then(data => {
@@ -67,50 +85,97 @@
                 });
         }
 
-        // Refresh GPX data every 3 seconds
-        setInterval(updateGPXData, 3000);
+        // Start streaming and data updates
+        function start() {
+            if (isRunning) return;
 
-        // Initial fetch of GPX data when the page loads
-        window.onload = updateGPXData;
+            isRunning = true;
+            startTime = Date.now() - elapsedTime;
+            intervalId = setInterval(updateGPXData, 3000);
+            timerInterval = setInterval(updateTimer, 1000);
 
-        // Function to download the JSON file
-        function downloadJSON() {
+            document.getElementById('original-video').src = "{{ url_for('video_feed') }}";
+            document.getElementById('bounding-box-video').src = "{{ url_for('video_feed_with_box') }}";
+        }
+
+        // Stop streaming and data updates
+        function stop() {
+            isRunning = false;
+            clearInterval(intervalId);
+            clearInterval(timerInterval);
+            elapsedTime = Date.now() - startTime;
+
+            document.getElementById('original-video').src = "";
+            document.getElementById('bounding-box-video').src = "";
+        }
+
+        // Reset the timer and elapsed time when stopping
+        function reset() {
+            isRunning = false;
+            clearInterval(intervalId);
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            startTime = 0;
+            document.getElementById('timer').textContent = "00:00:00";
+
+            document.getElementById('original-video').src = "";
+            document.getElementById('bounding-box-video').src = "";
+        }
+
+        // Update the timer display
+        function updateTimer() {
+            const currentElapsedTime = Date.now() - startTime;
+            const hours = Math.floor(currentElapsedTime / 3600000).toString().padStart(2, '0');
+            const minutes = Math.floor((currentElapsedTime % 3600000) / 60000).toString().padStart(2, '0');
+            const seconds = Math.floor((currentElapsedTime % 60000) / 1000).toString().padStart(2, '0');
+
+            document.getElementById('timer').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        // Download the current GPX data as a JSON file
+        function downloadGPXData() {
             fetch('/gpx_data')
                 .then(response => response.json())
                 .then(data => {
-                    const fileName = 'gpx_data.json';
-                    const jsonStr = JSON.stringify(data, null, 4);
-                    const blob = new Blob([jsonStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 4));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "gpx_data.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
                 })
                 .catch(error => {
-                    console.error('Error downloading JSON file:', error);
+                    console.error('Error downloading GPX data:', error);
                 });
         }
+
+        window.onload = function () {
+            updateGPXData();
+        };
     </script>
 </head>
 <body>
     <h1>Live Video Feed with GPX Data</h1>
+    <div class="control-buttons">
+        <button onclick="start()">Start</button>
+        <button class="stop" onclick="stop()">Stop</button>
+        <button onclick="reset()">Reset</button>
+        <button onclick="downloadGPXData()">Download GPX Data</button>
+    </div>
+    <div class="timer" id="timer">00:00:00</div>
     <div class="container">
         <div class="panel">
             <h2>Original Video Feed</h2>
-            <img src="{{ url_for('video_feed') }}" alt="Live Video Feed">
+            <img id="original-video" alt="Live Video Feed">
         </div>
         <div class="panel">
             <h2>Video Feed with Bounding Box</h2>
-            <img src="{{ url_for('video_feed_with_box') }}" alt="Video with Bounding Box">
+            <img id="bounding-box-video" alt="Video with Bounding Box">
         </div>
         <div class="panel gpx-data-container">
             <h2>GPX Data</h2>
             <pre id="gpx-data">Loading...</pre>
-            <button class="download-button" onclick="downloadJSON()">Download GPX Data</button>
         </div>
     </div>
 </body>
