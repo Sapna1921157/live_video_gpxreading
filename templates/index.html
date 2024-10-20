@@ -71,7 +71,6 @@
         let startTime = 0;
         let elapsedTime = 0;
 
-        // Function to fetch and update the GPX data
         function updateGPXData() {
             if (!isRunning) return;
 
@@ -85,54 +84,46 @@
                 });
         }
 
-        // Start streaming and data updates
         function start() {
             if (isRunning) return;
 
             isRunning = true;
             startTime = Date.now() - elapsedTime;
             intervalId = setInterval(updateGPXData, 3000);
-            timerInterval = setInterval(updateTimer, 1000);
 
+            // Set video sources
             document.getElementById('original-video').src = "{{ url_for('video_feed') }}";
             document.getElementById('bounding-box-video').src = "{{ url_for('video_feed_with_box') }}";
+
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
         }
 
-        // Stop streaming and data updates
         function stop() {
             isRunning = false;
             clearInterval(intervalId);
             clearInterval(timerInterval);
             elapsedTime = Date.now() - startTime;
 
+            // Stop video feeds
             document.getElementById('original-video').src = "";
             document.getElementById('bounding-box-video').src = "";
+
+            // Send request to stop the camera
+            fetch('/stop_camera', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data.message))
+                .catch(error => console.error('Error stopping camera:', error));
         }
 
-        // Reset the timer and elapsed time when stopping
-        function reset() {
-            isRunning = false;
-            clearInterval(intervalId);
-            clearInterval(timerInterval);
-            elapsedTime = 0;
-            startTime = 0;
-            document.getElementById('timer').textContent = "00:00:00";
-
-            document.getElementById('original-video').src = "";
-            document.getElementById('bounding-box-video').src = "";
-        }
-
-        // Update the timer display
         function updateTimer() {
             const currentElapsedTime = Date.now() - startTime;
             const hours = Math.floor(currentElapsedTime / 3600000).toString().padStart(2, '0');
             const minutes = Math.floor((currentElapsedTime % 3600000) / 60000).toString().padStart(2, '0');
             const seconds = Math.floor((currentElapsedTime % 60000) / 1000).toString().padStart(2, '0');
-
             document.getElementById('timer').textContent = `${hours}:${minutes}:${seconds}`;
         }
 
-        // Download the current GPX data as a JSON file
         function downloadGPXData() {
             fetch('/gpx_data')
                 .then(response => response.json())
@@ -160,7 +151,6 @@
     <div class="control-buttons">
         <button onclick="start()">Start</button>
         <button class="stop" onclick="stop()">Stop</button>
-        <button onclick="reset()">Reset</button>
         <button onclick="downloadGPXData()">Download GPX Data</button>
     </div>
     <div class="timer" id="timer">00:00:00</div>
