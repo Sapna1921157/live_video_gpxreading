@@ -30,9 +30,10 @@
         <!-- GPX Processing Panel -->
         <div class="panel" id="gpx_processing_panel">
             <h2>GPX Data Processing</h2>
-            <p>Latitude: <span id="latitude"></span></p>
-            <p>Longitude: <span id="longitude"></span></p>
-            <p>Timestamp: <span id="timestamp"></span></p>
+            <div class="video-container">
+                <h1>Live Video Feed with GPX Data</h1>
+                <img src="{{ url_for('video_feed') }}" alt="Live Video Feed">
+            </div>
             <button id="process_gpx" onclick="fetchGPXData()">Process GPX</button>
         </div>
 
