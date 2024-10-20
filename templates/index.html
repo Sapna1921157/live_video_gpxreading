@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPX Data Processing</title>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-around;
+        }
+        .panel {
+            border: 1px solid black;
+            width: 30%;
+            height: 300px;
+            padding: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>GPX Data from Live Video</h1>
+    <div class="container">
+        <!-- Live Video -->
+        <div class="panel" id="live_video_panel">
+            <h2>Live Video</h2>
+            <img id="video_feed" src="{{ url_for('video_feed') }}" alt="Video Feed" width="100%">
+        </div>
+
+        <!-- GPX Processing Panel -->
+        <div class="panel" id="gpx_processing_panel">
+            <h2>GPX Data Processing</h2>
+            <p>Latitude: <span id="latitude"></span></p>
+            <p>Longitude: <span id="longitude"></span></p>
+            <p>Timestamp: <span id="timestamp"></span></p>
+            <button id="process_gpx" onclick="fetchGPXData()">Process GPX</button>
+        </div>
+
+        <!-- GPX Values Panel (JSON) -->
+        <div class="panel" id="gpx_reading_panel">
+            <h2>GPX Reading</h2>
+            <pre id="gpx_json"></pre>
+            <button onclick="downloadJSON()">Download JSON</button>
+        </div>
+    </div>
+
+    <script>
+        function fetchGPXData() {
+            fetch('/gpx_data').then(response => response.json()).then(data => {
+                document.getElementById('latitude').textContent = data.latitude;
+                document.getElementById('longitude').textContent = data.longitude;
+                document.getElementById('timestamp').textContent = data.timestamp;
+
+                // Show data as JSON in third panel
+                document.getElementById('gpx_json').textContent = JSON.stringify(data, null, 4);
+            });
+        }
+
+        function downloadJSON() {
+            const data = document.getElementById('gpx_json').textContent;
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gpx_data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
